@@ -14,14 +14,13 @@ telegram:
 trading:
   instrument: "blitz"               # "binary" or "blitz"
   expiry_seconds: 120               # 30=blitz, 60=1min, 120=2min, 300=5min
-  assets:
-    - "EURUSD"
-    - "GBPUSD"
-    - "USDJPY"
-    - "AUDUSD"
-    - "EURGBP"
-  # Leave assets empty to auto-use ALL open assets at runtime:
-  # assets: []
+  assets_file: "configs/assets.json"  # full asset list by category
+  asset_categories:                 # which categories to include
+    - "forex"
+    - "crypto"
+    - "commodities"
+  # Pin specific assets here to override assets_file (leave empty to use file):
+  assets: []
   scan_interval_seconds: 30         # scan each asset every N seconds
   candle_interval_seconds: 60       # 1-min candles for analysis
   candle_count: 100                 # history depth

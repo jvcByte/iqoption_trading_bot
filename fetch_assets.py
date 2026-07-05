@@ -54,13 +54,13 @@ def main():
         print(f"{'═'*50}")
         print(f"  {label} ({instrument_key})")
         print(f"{'═'*50}")
-        print(f"  ✅ OPEN  ({len(open_assets)}):")
+        print(f"  ✅ OPEN NOW  ({len(open_assets)}):")
         for a in open_assets:
-            print(f"      - \"{a}\"")
+            print(f"      \"{a}\"")
 
-        print(f"\n  🔒 CLOSED ({len(closed_assets)}):")
+        print(f"\n  🔒 CLOSED ({len(closed_assets)}) — in assets.json but not tradeable right now:")
         for a in closed_assets:
-            print(f"      - \"{a}\"")
+            print(f"      \"{a}\"")
         print()
 
     print("─" * 50)

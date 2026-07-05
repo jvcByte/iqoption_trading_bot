@@ -106,29 +106,45 @@ class IQOptionClient:
         log.debug("Fetched %d candles for %s", len(df), asset)
         return df
 
-    def get_available_assets(self) -> List[str]:
+    def get_open_assets(self) -> List[str]:
         """
-        Return list of currently open assets for the configured instrument.
-        Falls back to turbo-option if blitz returns nothing (same asset pool).
+        Query IQ Option for every asset currently open/tradeable.
+        Blitz falls back to turbo-option since they share the same asset pool.
         """
         if not self.ensure_connected():
             return []
         try:
             all_assets = self._api.get_all_open_time()
-
             instrument = _INSTRUMENT_MAP.get(self._trading.instrument, "turbo-option")
             assets = all_assets.get(instrument, {})
             open_list = [a for a, info in assets.items() if info.get("open", False)]
 
-            # Blitz uses the same asset pool as turbo-option — fall back if empty
             if not open_list and instrument == "blitz":
                 assets = all_assets.get("turbo-option", {})
                 open_list = [a for a, info in assets.items() if info.get("open", False)]
 
             return sorted(open_list)
         except Exception as e:
-            log.error("Failed to get available assets: %s", e)
+            log.error("Failed to get open assets from IQ Option: %s", e)
             return []
+
+    def filter_open(self, candidates: List[str]) -> List[str]:
+        """
+        Given a list from assets.json, return only those IQ Option has open right now.
+        This is the real-time check — market hours vary per asset.
+        Forex: closes weekends. Stocks: follow exchange hours. OTC: 24/7.
+        """
+        open_set = set(self.get_open_assets())
+        open_candidates = [a for a in candidates if a in open_set]
+        closed = [a for a in candidates if a not in open_set]
+        if closed:
+            log.debug("Skipping %d closed assets: %s", len(closed), ", ".join(closed))
+        log.info("Open: %d / %d assets from configured list", len(open_candidates), len(candidates))
+        return open_candidates
+
+    def get_available_assets(self) -> List[str]:
+        """Alias — all currently open assets with no pre-filter."""
+        return self.get_open_assets()
 
     def get_balance(self) -> float:
         if not self.ensure_connected():

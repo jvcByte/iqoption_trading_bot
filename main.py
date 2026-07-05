@@ -15,7 +15,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict
 
-from config import load_config, setup_logging, AppConfig
+from config import load_config, load_assets, setup_logging, AppConfig
 from iqoption.client import IQOptionClient
 from analysis.engine import analyze
 from telegram.sender import TelegramSender
@@ -42,8 +42,14 @@ def run_scan(
     iq_client: IQOptionClient,
     tg_sender: TelegramSender,
 ) -> None:
-    """One full scan pass across all configured assets."""
-    assets = cfg.trading.assets
+    """One full scan pass — filters to only currently open assets each cycle."""
+    all_configured = load_assets(cfg.trading) or iq_client.get_available_assets()
+
+    # Real-time filter: only trade what IQ Option has open right now
+    assets = iq_client.filter_open(all_configured)
+    if not assets:
+        log.warning("No open assets right now — skipping scan cycle")
+        return
 
     for asset in assets:
         log.info("─── Scanning %s ───", asset)
@@ -121,14 +127,15 @@ def main() -> None:
     balance = iq_client.get_balance()
     log.info("Account balance: %.2f", balance)
 
-    # Auto-discover assets if none configured
+    # Resolve asset list: manual override > assets.json > live API discovery
+    cfg.trading.assets = load_assets(cfg.trading)
     if not cfg.trading.assets:
-        log.info("No assets configured — fetching all open assets from IQ Option...")
+        log.info("No assets in config/file — fetching all open assets from IQ Option...")
         cfg.trading.assets = iq_client.get_available_assets()
-        if not cfg.trading.assets:
-            log.critical("No open assets found — aborting")
-            sys.exit(1)
-        log.info("Auto-discovered %d assets: %s", len(cfg.trading.assets), ", ".join(cfg.trading.assets))
+    if not cfg.trading.assets:
+        log.critical("No open assets found — aborting")
+        sys.exit(1)
+    log.info("Trading %d assets across: %s", len(cfg.trading.assets), ", ".join(cfg.trading.asset_categories))
 
     tg_sender.send_status(
         f"Signal Generator started\n"

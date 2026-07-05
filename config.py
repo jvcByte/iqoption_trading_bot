@@ -49,7 +49,9 @@ class AnalysisConfig:
 class TradingConfig:
     instrument: str = "binary"          # "binary" or "blitz"
     expiry_seconds: int = 120
-    assets: List[str] = field(default_factory=list)
+    assets_file: str = "configs/assets.json"
+    asset_categories: List[str] = field(default_factory=lambda: ["forex", "crypto", "commodities"])
+    assets: List[str] = field(default_factory=list)  # overrides assets_file when non-empty
     scan_interval_seconds: int = 30
     candle_interval_seconds: int = 60
     candle_count: int = 100
@@ -84,6 +86,33 @@ class AppConfig:
     logging: LoggingConfig = field(default_factory=LoggingConfig)
 
 
+def load_assets(trading: "TradingConfig") -> List[str]:
+    """
+    Resolve the final asset list:
+      1. If trading.assets is non-empty, use it directly (manual override).
+      2. Otherwise load from assets_file filtered by asset_categories + instrument.
+    """
+    if trading.assets:
+        return trading.assets
+
+    import json
+    try:
+        with open(trading.assets_file, "r") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        log.warning("assets_file %s not found — falling back to empty list", trading.assets_file)
+        return []
+
+    instrument_key = trading.instrument  # "binary" or "blitz"
+    instrument_data = data.get(instrument_key, data.get("binary", {}))
+
+    result = []
+    for category in trading.asset_categories:
+        result.extend(instrument_data.get(category, []))
+
+    return result
+
+
 def load_config(path: str = "configs/config.yaml") -> AppConfig:
     with open(path, "r") as f:
         raw = yaml.safe_load(f)
@@ -113,7 +142,9 @@ def load_config(path: str = "configs/config.yaml") -> AppConfig:
         trading=TradingConfig(
             instrument=tr.get("instrument", "binary"),
             expiry_seconds=tr.get("expiry_seconds", 120),
-            assets=tr.get("assets", ["EURUSD"]),
+            assets_file=tr.get("assets_file", "configs/assets.json"),
+            asset_categories=tr.get("asset_categories", ["forex", "crypto", "commodities"]),
+            assets=tr.get("assets", []),
             scan_interval_seconds=tr.get("scan_interval_seconds", 30),
             candle_interval_seconds=tr.get("candle_interval_seconds", 60),
             candle_count=tr.get("candle_count", 100),

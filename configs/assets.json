@@ -1,0 +1,63 @@
+{
+  "binary": {
+    "forex": [
+      "EURUSD", "GBPUSD", "USDJPY", "USDCHF", "USDCAD",
+      "AUDUSD", "NZDUSD", "EURGBP", "EURJPY", "GBPJPY",
+      "AUDJPY", "EURAUD", "EURCHF", "GBPCHF", "GBPAUD",
+      "CADJPY", "NZDJPY", "AUDCAD", "AUDCHF", "AUDNZD",
+      "CADCHF", "EURCAD", "EURNZD", "GBPCAD", "GBPNZD",
+      "NZDCAD", "NZDCHF", "EURUSD-OTC", "EURGBP-OTC",
+      "GBPUSD-OTC", "USDJPY-OTC", "AUDUSD-OTC", "EURJPY-OTC",
+      "GBPJPY-OTC", "NZDUSD-OTC", "USDCHF-OTC", "USDCAD-OTC",
+      "AUDCAD-OTC", "AUDCHF-OTC", "AUDJPY-OTC", "AUDNZD-OTC",
+      "CADCHF-OTC", "CADJPY-OTC", "EURAUD-OTC", "EURCAD-OTC",
+      "EURCHF-OTC", "EURNZD-OTC", "GBPAUD-OTC", "GBPCAD-OTC",
+      "GBPCHF-OTC", "GBPNZD-OTC", "NZDCAD-OTC", "NZDCHF-OTC",
+      "NZDJPY-OTC"
+    ],
+    "crypto": [
+      "BTCUSD", "ETHUSD", "LTCUSD", "XRPUSD", "DOTUSD",
+      "ADAUSD", "SOLUSD", "MATICUSD", "LNKUSD", "UNIUSD",
+      "XLMUSD", "TRXUSD", "BNBUSD", "DOGEUSD", "SHIBAUSD",
+      "AVAXUSD", "ATOMUSD", "ALGOUSD", "FILUSD", "EOSUSD"
+    ],
+    "commodities": [
+      "XAUUSD", "XAGUSD", "XPTUSD",
+      "USOIL", "UKOIL"
+    ],
+    "indices": [
+      "AUS200", "DUBAI", "ESP35", "EUR50",
+      "FRA40", "GER30", "HKG33", "JPN225",
+      "NETH25", "SWI20", "UK100", "US100",
+      "US30", "US500"
+    ],
+    "stocks": [
+      "AAPL", "AMZN", "GOOGL", "MSFT", "TSLA",
+      "FB", "NFLX", "BABA", "NVDA", "AMD",
+      "INTC", "BIDU", "JD", "TWTR", "SNAP",
+      "UBER", "LYFT", "PYPL", "SQ", "SHOP",
+      "BA", "GE", "F", "GM", "XOM",
+      "CVX", "JPM", "BAC", "WFC", "GS",
+      "V", "MA", "DIS", "KO", "PEP",
+      "MCD", "SBUX", "NKE", "WMT", "COST"
+    ]
+  },
+  "blitz": {
+    "forex": [
+      "EURUSD", "GBPUSD", "USDJPY", "USDCHF", "USDCAD",
+      "AUDUSD", "NZDUSD", "EURGBP", "EURJPY", "GBPJPY",
+      "AUDJPY", "EURAUD", "EURCHF", "GBPCHF", "GBPAUD",
+      "CADJPY", "NZDJPY", "AUDCAD", "AUDCHF", "AUDNZD",
+      "CADCHF", "EURCAD", "EURNZD", "GBPCAD", "GBPNZD",
+      "NZDCAD", "NZDCHF", "EURUSD-OTC", "EURGBP-OTC",
+      "GBPUSD-OTC", "USDJPY-OTC", "AUDUSD-OTC", "EURJPY-OTC",
+      "GBPJPY-OTC", "NZDUSD-OTC", "USDCHF-OTC", "USDCAD-OTC"
+    ],
+    "crypto": [
+      "BTCUSD", "ETHUSD", "LTCUSD", "XRPUSD", "BNBUSD"
+    ],
+    "commodities": [
+      "XAUUSD", "XAGUSD", "USOIL"
+    ]
+  }
+}
