@@ -9,7 +9,7 @@ telegram:
   phone: "+1234567890"
   # channel_id: -1001234567890     # test channel
   channel_id: -1009876543210       # mexy
-  session_file: "session/telegram.session"
+  session_file: "session/signal_generator.session"
 
 trading:
   instrument: "blitz"               # "binary" or "blitz"

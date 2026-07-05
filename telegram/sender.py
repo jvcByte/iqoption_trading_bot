@@ -1,15 +1,13 @@
 """
 Telegram sender — posts signals to a channel using MTProto (Telethon).
-
-Uses a persistent session file (same pattern as the Go signal_bot consumer),
-so you only need to authenticate once. The session is reused on restarts.
+Runs fully async to avoid conflicts with iqoptionapi's internal threads.
 """
 import logging
 import os
 from datetime import datetime, timedelta
 from typing import Optional
 
-from telethon.sync import TelegramClient
+from telethon import TelegramClient
 from telethon.errors import SessionPasswordNeededError
 
 from config import TelegramConfig, TradingConfig, MartingaleConfig, SignalConfig
@@ -17,13 +15,11 @@ from analysis.engine import SignalResult
 
 log = logging.getLogger(__name__)
 
-# Flag emojis for common currency pairs
 _CURRENCY_FLAGS = {
     "EUR": "🇪🇺", "USD": "🇺🇸", "GBP": "🇬🇧", "JPY": "🇯🇵",
     "AUD": "🇦🇺", "NZD": "🇳🇿", "CAD": "🇨🇦", "CHF": "🇨🇭",
     "BTC": "₿",   "ETH": "Ξ",
 }
-
 _DIRECTION_EMOJI = {"CALL": "📈", "PUT": "📉"}
 _DIRECTION_LABEL = {"CALL": "🟢 BUY", "PUT": "🔴 SELL"}
 
@@ -48,10 +44,6 @@ def format_signal(
     signal_cfg: SignalConfig,
     entry_time: Optional[datetime] = None,
 ) -> str:
-    """
-    Build Mexy-compatible signal text.
-    Parsed correctly by the Go signal_bot consumer (websocket-api branch).
-    """
     if entry_time is None:
         entry_time = datetime.now()
 
@@ -79,7 +71,7 @@ def format_signal(
             lines.append(f"• Level {lvl}  →  {t.strftime('%I:%M %p').lstrip('0')}")
 
     if result.details:
-        lines += [f"", f"📡  Signals ({result.votes_for}/{result.votes_total}):"]
+        lines += ["", f"📡  Signals ({result.votes_for}/{result.votes_total}):"]
         for d in result.details:
             lines.append(f"  ▸ {d}")
 
@@ -91,13 +83,8 @@ class TelegramSender:
         self._cfg = cfg
         self._client: Optional[TelegramClient] = None
 
-    def connect(self) -> bool:
-        """
-        Connect and authenticate. On first run this prompts for the OTP
-        sent to your phone. Session is saved to session_file for reuse.
-        """
+    async def connect(self) -> bool:
         os.makedirs(os.path.dirname(self._cfg.session_file), exist_ok=True)
-        # Strip .session extension — Telethon adds it automatically
         session_path = self._cfg.session_file.replace(".session", "")
 
         self._client = TelegramClient(
@@ -105,36 +92,34 @@ class TelegramSender:
             self._cfg.api_id,
             self._cfg.api_hash,
         )
-        self._client.connect()
+        await self._client.connect()
 
-        if not self._client.is_user_authorized():
+        if not await self._client.is_user_authorized():
             log.info("First run — sending OTP to %s", self._cfg.phone)
-            self._client.send_code_request(self._cfg.phone)
+            await self._client.send_code_request(self._cfg.phone)
             code = input("Enter the Telegram verification code: ").strip()
             try:
-                self._client.sign_in(self._cfg.phone, code)
+                await self._client.sign_in(self._cfg.phone, code)
             except SessionPasswordNeededError:
-                # 2FA enabled
                 password = input("Enter your 2FA password: ").strip()
-                self._client.sign_in(password=password)
+                await self._client.sign_in(password=password)
 
         log.info("Telegram MTProto session established")
         return True
 
-    def send(self, text: str) -> bool:
-        """Send a message to the configured channel."""
+    async def send(self, text: str) -> bool:
         if self._client is None:
             log.error("Telegram client not connected")
             return False
         try:
-            self._client.send_message(self._cfg.channel_id, text)
+            await self._client.send_message(self._cfg.channel_id, text)
             log.info("Signal posted to channel %s", self._cfg.channel_id)
             return True
         except Exception as e:
             log.error("Failed to send Telegram message: %s", e)
             return False
 
-    def send_signal(
+    async def send_signal(
         self,
         result: SignalResult,
         trading: TradingConfig,
@@ -143,12 +128,12 @@ class TelegramSender:
     ) -> bool:
         text = format_signal(result, trading, martingale, signal_cfg, datetime.now())
         log.debug("Formatted signal:\n%s", text)
-        return self.send(text)
+        return await self.send(text)
 
-    def send_status(self, message: str) -> bool:
-        return self.send(f"ℹ️ {message}")
+    async def send_status(self, message: str) -> bool:
+        return await self.send(f"ℹ️ {message}")
 
-    def disconnect(self) -> None:
+    async def disconnect(self) -> None:
         if self._client:
-            self._client.disconnect()
+            await self._client.disconnect()
             log.info("Telegram client disconnected")
