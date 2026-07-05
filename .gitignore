@@ -1,0 +1,22 @@
+# credentials & session
+configs/config.yaml
+session/
+*.session
+
+# logs & data
+logs/
+data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
