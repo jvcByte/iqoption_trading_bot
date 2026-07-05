@@ -119,7 +119,7 @@ class IQOptionClient:
         return False
 
     def ensure_connected(self) -> bool:
-        """Reconnect if session dropped."""
+        """Reconnect if session dropped, saving fresh SSID on success."""
         if not self._connected:
             return self.connect()
         if not self._api.check_connect():
