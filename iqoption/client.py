@@ -112,44 +112,43 @@ class IQOptionClient:
         log.debug("Fetched %d candles for %s", len(df), asset)
         return df
 
-    def get_open_assets(self) -> List[str]:
+    def _get_open_assets_sync(self) -> List[str]:
         """
-        Query IQ Option for every asset currently open/tradeable.
-        Retries once with a delay — the iqoptionapi background threads that fetch
-        digital/turbo data can still be running shortly after connect.
+        Fetch open assets without calling get_all_open_time() — that method
+        blocks 30s waiting for digital options we don't use.
+        We call only the binary/turbo init directly and parse it ourselves.
         """
-        if not self.ensure_connected():
+        try:
+            # Directly use the fast binary init (no digital/other threads)
+            binary_data = self._api.get_all_init_v2()
+            if not binary_data:
+                return []
+
+            open_list = []
+            for option_type in ["binary", "turbo"]:
+                if option_type not in binary_data:
+                    continue
+                for active_id, active in binary_data[option_type]["actives"].items():
+                    if not active.get("enabled", False):
+                        continue
+                    if active.get("is_suspended", False):
+                        continue
+                    name = str(active["name"]).split(".")[1]
+                    open_list.append(name)
+
+            return sorted(set(open_list))
+        except Exception as e:
+            log.error("_get_open_assets_sync failed: %s", e)
             return []
 
-        for attempt in range(2):
-            try:
-                all_assets = self._api.get_all_open_time()
-                if all_assets is None:
-                    raise ValueError("get_all_open_time returned None")
-
-                instrument = _INSTRUMENT_MAP.get(self._trading.instrument, "turbo-option")
-                assets = all_assets.get(instrument, {})
-                open_list = [a for a, info in assets.items() if info.get("open", False)]
-
-                # Blitz shares the turbo-option asset pool
-                if not open_list and instrument == "blitz":
-                    assets = all_assets.get("turbo-option", {})
-                    open_list = [a for a, info in assets.items() if info.get("open", False)]
-
-                return sorted(open_list)
-            except Exception as e:
-                if attempt == 0:
-                    log.warning("get_open_assets attempt 1 failed (%s) — retrying in 3s...", e)
-                    time.sleep(3)
-                else:
-                    log.error("get_open_assets failed after retry: %s", e)
-        return []
+    def get_open_assets(self) -> List[str]:
+        if not self.ensure_connected():
+            return []
+        return self._get_open_assets_sync()
 
     def filter_open(self, candidates: List[str]) -> List[str]:
         """
-        Given a list from assets.json, return only those IQ Option has open right now.
-        This is the real-time check — market hours vary per asset.
-        Forex: closes weekends. Stocks: follow exchange hours. OTC: 24/7.
+        Return only assets from candidates that IQ Option has open right now.
         """
         open_set = set(self.get_open_assets())
         open_candidates = [a for a in candidates if a in open_set]

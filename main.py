@@ -40,7 +40,16 @@ async def run_scan(
 ) -> None:
     """One full scan pass — filters to only currently open assets each cycle."""
     all_configured = load_assets(cfg.trading) or iq_client.get_available_assets()
-    assets = iq_client.filter_open(all_configured)
+
+    loop = asyncio.get_event_loop()
+    try:
+        assets = await asyncio.wait_for(
+            loop.run_in_executor(None, iq_client.filter_open, all_configured),
+            timeout=15.0
+        )
+    except asyncio.TimeoutError:
+        log.warning("filter_open timed out — using full configured list")
+        assets = all_configured
 
     if not assets:
         log.warning("No open assets right now — skipping scan cycle")
@@ -58,11 +67,16 @@ async def run_scan(
             log.debug("%s on cooldown — %ds remaining", asset, int(remaining.total_seconds()))
             continue
 
-        # Run candle fetch + analysis in executor so it doesn't block the event loop
+        # Run blocking IQ Option calls in executor with a timeout
         loop = asyncio.get_event_loop()
-        df = await loop.run_in_executor(
-            None, iq_client.get_candles, asset, cfg.trading.candle_count
-        )
+        try:
+            df = await asyncio.wait_for(
+                loop.run_in_executor(None, iq_client.get_candles, asset, cfg.trading.candle_count),
+                timeout=15.0
+            )
+        except asyncio.TimeoutError:
+            log.warning("%s: candle fetch timed out — skipping", asset)
+            continue
 
         if df is None or df.empty:
             log.warning("No candle data for %s — skipping", asset)
