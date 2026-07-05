@@ -1,13 +1,17 @@
 """
 IQ Option client — wraps iqoptionapi to fetch live candle data.
-Handles connection, reconnection, and candle normalization into pandas DataFrames.
+Handles connection, reconnection, candle normalization, and SSID persistence
+to avoid repeated logins and reduce rate-limiting risk.
 """
+import json
 import logging
+import os
 import time
 from typing import List, Optional
 
 import pandas as pd
 from iqoptionapi.stable_api import IQ_Option
+from iqoptionapi import global_value
 
 from config import IQOptionConfig, TradingConfig
 
@@ -37,6 +41,25 @@ _CANDLE_DURATION_MAP = {
 }
 
 
+_SSID_FILE = "session/iqoption_ssid.json"
+
+
+def _load_ssid() -> Optional[str]:
+    try:
+        with open(_SSID_FILE) as f:
+            data = json.load(f)
+            return data.get("ssid")
+    except Exception:
+        return None
+
+
+def _save_ssid(ssid: str) -> None:
+    os.makedirs(os.path.dirname(_SSID_FILE), exist_ok=True)
+    with open(_SSID_FILE, "w") as f:
+        json.dump({"ssid": ssid}, f)
+    log.debug("SSID saved to %s", _SSID_FILE)
+
+
 class IQOptionClient:
     def __init__(self, cfg: IQOptionConfig, trading_cfg: TradingConfig):
         self._cfg = cfg
@@ -46,26 +69,50 @@ class IQOptionClient:
 
     def connect(self) -> bool:
         log.info("Connecting to IQ Option (demo=%s)...", self._cfg.demo_mode)
+
+        # Restore saved SSID — library will try it first, skipping the login call
+        saved_ssid = _load_ssid()
+        if saved_ssid:
+            global_value.SSID = saved_ssid
+            log.info("Restored saved SSID — attempting session reuse...")
+        else:
+            log.info("No saved SSID — will perform fresh login")
+
         for attempt in range(3):
             try:
                 self._api = IQ_Option(self._cfg.email, self._cfg.password)
                 check, reason = self._api.connect()
                 if not check:
                     log.error("IQ Option connection failed: %s (attempt %d/3)", reason, attempt + 1)
+                    # Saved SSID may be expired — clear it and retry with fresh login
+                    if saved_ssid and attempt == 0:
+                        log.info("Clearing stale SSID, retrying with fresh login...")
+                        global_value.SSID = None
+                        saved_ssid = None
+                        try:
+                            os.remove(_SSID_FILE)
+                        except Exception:
+                            pass
                     time.sleep(3)
                     continue
+
+                # Save the fresh SSID for next run
+                current_ssid = global_value.SSID
+                if current_ssid:
+                    _save_ssid(current_ssid)
+                    log.info("SSID saved for session reuse")
 
                 balance_type = "PRACTICE" if self._cfg.demo_mode else "REAL"
                 self._api.change_balance(balance_type)
                 self._connected = True
 
-                # Wait for websocket subscriptions to settle before any API calls
                 log.info("Connected (%s) — waiting for websocket data to settle...", balance_type)
                 time.sleep(3)
                 log.info("IQ Option ready")
                 return True
             except Exception as e:
                 log.error("IQ Option connect exception (attempt %d/3): %s", attempt + 1, e)
+                global_value.SSID = None
                 time.sleep(3)
 
         log.error("All IQ Option connection attempts failed")

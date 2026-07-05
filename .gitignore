@@ -2,6 +2,7 @@
 configs/config.yaml
 session/
 *.session
+*.json.session
 
 # logs & data
 logs/
