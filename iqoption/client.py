@@ -107,14 +107,25 @@ class IQOptionClient:
         return df
 
     def get_available_assets(self) -> List[str]:
-        """Return list of open binary/blitz assets right now."""
+        """
+        Return list of currently open assets for the configured instrument.
+        Falls back to turbo-option if blitz returns nothing (same asset pool).
+        """
         if not self.ensure_connected():
             return []
         try:
             all_assets = self._api.get_all_open_time()
+
             instrument = _INSTRUMENT_MAP.get(self._trading.instrument, "turbo-option")
             assets = all_assets.get(instrument, {})
-            return [a for a, info in assets.items() if info.get("open", False)]
+            open_list = [a for a, info in assets.items() if info.get("open", False)]
+
+            # Blitz uses the same asset pool as turbo-option — fall back if empty
+            if not open_list and instrument == "blitz":
+                assets = all_assets.get("turbo-option", {})
+                open_list = [a for a, info in assets.items() if info.get("open", False)]
+
+            return sorted(open_list)
         except Exception as e:
             log.error("Failed to get available assets: %s", e)
             return []

@@ -121,6 +121,15 @@ def main() -> None:
     balance = iq_client.get_balance()
     log.info("Account balance: %.2f", balance)
 
+    # Auto-discover assets if none configured
+    if not cfg.trading.assets:
+        log.info("No assets configured — fetching all open assets from IQ Option...")
+        cfg.trading.assets = iq_client.get_available_assets()
+        if not cfg.trading.assets:
+            log.critical("No open assets found — aborting")
+            sys.exit(1)
+        log.info("Auto-discovered %d assets: %s", len(cfg.trading.assets), ", ".join(cfg.trading.assets))
+
     tg_sender.send_status(
         f"Signal Generator started\n"
         f"Instrument: {cfg.trading.instrument.upper()} | "

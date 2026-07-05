@@ -20,6 +20,8 @@ trading:
     - "USDJPY"
     - "AUDUSD"
     - "EURGBP"
+  # Leave assets empty to auto-use ALL open assets at runtime:
+  # assets: []
   scan_interval_seconds: 30         # scan each asset every N seconds
   candle_interval_seconds: 60       # 1-min candles for analysis
   candle_count: 100                 # history depth
