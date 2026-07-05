@@ -1,7 +1,7 @@
 # IQ Option API — installed from GitHub (not on PyPI at correct version)
 iqoptionapi @ https://github.com/iqoptionapi/iqoptionapi/archive/refs/heads/master.zip
 websocket-client==0.56.0
-pandas==2.2.3
+pandas>=2.3.2
 pandas-ta==0.4.71b0
 requests==2.32.3
 telethon==1.36.0
