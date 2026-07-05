@@ -6,6 +6,7 @@ with iqoptionapi's internal websocket threads.
 """
 import asyncio
 import logging
+import os
 import signal
 import sys
 from datetime import datetime, timedelta
@@ -18,8 +19,36 @@ from telegram.sender import TelegramSender
 
 log = logging.getLogger(__name__)
 
+_PID_FILE = "session/signal_generator.pid"
+
 # Per-asset cooldown: asset → last signal time
 _last_signal: Dict[str, datetime] = {}
+
+
+def _acquire_pid_lock() -> bool:
+    """Write PID file. Returns False if another instance is already running."""
+    os.makedirs(os.path.dirname(_PID_FILE), exist_ok=True)
+    if os.path.exists(_PID_FILE):
+        try:
+            with open(_PID_FILE) as f:
+                old_pid = int(f.read().strip())
+            # Check if that process is actually still alive
+            os.kill(old_pid, 0)
+            log.error("Another instance is already running (PID %d). Exiting.", old_pid)
+            return False
+        except (ProcessLookupError, ValueError):
+            # Process is gone — stale PID file, safe to overwrite
+            log.warning("Stale PID file found (dead process) — overwriting")
+    with open(_PID_FILE, "w") as f:
+        f.write(str(os.getpid()))
+    return True
+
+
+def _release_pid_lock() -> None:
+    try:
+        os.remove(_PID_FILE)
+    except Exception:
+        pass
 
 
 def is_on_cooldown(asset: str, cooldown_seconds: int) -> bool:
@@ -104,6 +133,9 @@ async def main() -> None:
     cfg = load_config("configs/config.yaml")
     setup_logging(cfg.logging)
 
+    if not _acquire_pid_lock():
+        sys.exit(1)
+
     log.info("═══════════════════════════════════════")
     log.info("     SIGNAL GENERATOR STARTING")
     log.info("═══════════════════════════════════════")
@@ -177,6 +209,7 @@ async def main() -> None:
             pass  # interval elapsed, keep scanning
 
     log.info("Shutting down...")
+    _release_pid_lock()
     iq_client.disconnect()
     await tg_sender.send_status("Signal Generator stopped.")
     await tg_sender.disconnect()

@@ -2,6 +2,7 @@
 Telegram sender — posts signals to a channel using MTProto (Telethon).
 Runs fully async to avoid conflicts with iqoptionapi's internal threads.
 """
+import asyncio
 import logging
 import os
 from datetime import datetime, timedelta
@@ -92,7 +93,31 @@ class TelegramSender:
             self._cfg.api_id,
             self._cfg.api_hash,
         )
-        await self._client.connect()
+
+        # Retry connect — stale processes may still be releasing the session lock
+        for attempt in range(5):
+            try:
+                await self._client.connect()
+                break
+            except Exception as e:
+                if "database is locked" in str(e).lower() or "locked" in str(e).lower():
+                    log.warning(
+                        "Telegram session locked (attempt %d/5) — "
+                        "stale process still releasing. Retrying in 3s...", attempt + 1
+                    )
+                    await asyncio.sleep(3)
+                    # Re-create client to get a fresh SQLite handle
+                    self._client = TelegramClient(
+                        session_path,
+                        self._cfg.api_id,
+                        self._cfg.api_hash,
+                    )
+                else:
+                    log.error("Telegram connect error: %s", e)
+                    return False
+        else:
+            log.error("Telegram session still locked after 5 attempts — is another instance running?")
+            return False
 
         if not await self._client.is_user_authorized():
             log.info("First run — sending OTP to %s", self._cfg.phone)
