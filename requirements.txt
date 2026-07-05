@@ -1,0 +1,9 @@
+iqoptionapi==4.0.0
+pandas==2.2.3
+pandas-ta==0.3.14b
+websocket-client==1.8.0
+requests==2.32.3
+telethon==1.36.0
+pyyaml==6.0.2
+aiohttp==3.10.11
+apscheduler==3.10.4
