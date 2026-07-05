@@ -52,11 +52,17 @@ class IQOptionClient:
             log.error("IQ Option connection failed: %s", reason)
             return False
 
-        # Select account type
         balance_type = "PRACTICE" if self._cfg.demo_mode else "REAL"
         self._api.change_balance(balance_type)
         self._connected = True
-        log.info("Connected to IQ Option (%s account)", balance_type)
+
+        # Give the websocket subscriptions time to populate before any API calls.
+        # The iqoptionapi library spawns background threads on connect that fetch
+        # digital/turbo asset lists — calling get_all_open_time() too early causes
+        # NoneType errors inside those threads.
+        log.info("Connected (%s) — waiting for websocket data to settle...", balance_type)
+        time.sleep(3)
+        log.info("IQ Option ready")
         return True
 
     def ensure_connected(self) -> bool:
@@ -109,24 +115,35 @@ class IQOptionClient:
     def get_open_assets(self) -> List[str]:
         """
         Query IQ Option for every asset currently open/tradeable.
-        Blitz falls back to turbo-option since they share the same asset pool.
+        Retries once with a delay — the iqoptionapi background threads that fetch
+        digital/turbo data can still be running shortly after connect.
         """
         if not self.ensure_connected():
             return []
-        try:
-            all_assets = self._api.get_all_open_time()
-            instrument = _INSTRUMENT_MAP.get(self._trading.instrument, "turbo-option")
-            assets = all_assets.get(instrument, {})
-            open_list = [a for a, info in assets.items() if info.get("open", False)]
 
-            if not open_list and instrument == "blitz":
-                assets = all_assets.get("turbo-option", {})
+        for attempt in range(2):
+            try:
+                all_assets = self._api.get_all_open_time()
+                if all_assets is None:
+                    raise ValueError("get_all_open_time returned None")
+
+                instrument = _INSTRUMENT_MAP.get(self._trading.instrument, "turbo-option")
+                assets = all_assets.get(instrument, {})
                 open_list = [a for a, info in assets.items() if info.get("open", False)]
 
-            return sorted(open_list)
-        except Exception as e:
-            log.error("Failed to get open assets from IQ Option: %s", e)
-            return []
+                # Blitz shares the turbo-option asset pool
+                if not open_list and instrument == "blitz":
+                    assets = all_assets.get("turbo-option", {})
+                    open_list = [a for a, info in assets.items() if info.get("open", False)]
+
+                return sorted(open_list)
+            except Exception as e:
+                if attempt == 0:
+                    log.warning("get_open_assets attempt 1 failed (%s) — retrying in 3s...", e)
+                    time.sleep(3)
+                else:
+                    log.error("get_open_assets failed after retry: %s", e)
+        return []
 
     def filter_open(self, candidates: List[str]) -> List[str]:
         """
