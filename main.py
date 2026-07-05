@@ -127,13 +127,15 @@ async def main() -> None:
     loop.add_signal_handler(signal.SIGINT, _shutdown)
     loop.add_signal_handler(signal.SIGTERM, _shutdown)
 
-    # IQ Option client (sync, runs in executor)
+    # IQ Option client (sync, runs in executor to avoid blocking event loop)
     iq_client = IQOptionClient(cfg.iqoption, cfg.trading)
-    if not iq_client.connect():
+    loop = asyncio.get_event_loop()
+    connected = await loop.run_in_executor(None, iq_client.connect)
+    if not connected:
         log.critical("Cannot connect to IQ Option — aborting")
         sys.exit(1)
 
-    balance = iq_client.get_balance()
+    balance = await loop.run_in_executor(None, iq_client.get_balance)
     log.info("Account balance: %.2f", balance)
 
     # Telegram client (async)

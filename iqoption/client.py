@@ -46,24 +46,30 @@ class IQOptionClient:
 
     def connect(self) -> bool:
         log.info("Connecting to IQ Option (demo=%s)...", self._cfg.demo_mode)
-        self._api = IQ_Option(self._cfg.email, self._cfg.password)
-        check, reason = self._api.connect()
-        if not check:
-            log.error("IQ Option connection failed: %s", reason)
-            return False
+        for attempt in range(3):
+            try:
+                self._api = IQ_Option(self._cfg.email, self._cfg.password)
+                check, reason = self._api.connect()
+                if not check:
+                    log.error("IQ Option connection failed: %s (attempt %d/3)", reason, attempt + 1)
+                    time.sleep(3)
+                    continue
 
-        balance_type = "PRACTICE" if self._cfg.demo_mode else "REAL"
-        self._api.change_balance(balance_type)
-        self._connected = True
+                balance_type = "PRACTICE" if self._cfg.demo_mode else "REAL"
+                self._api.change_balance(balance_type)
+                self._connected = True
 
-        # Give the websocket subscriptions time to populate before any API calls.
-        # The iqoptionapi library spawns background threads on connect that fetch
-        # digital/turbo asset lists — calling get_all_open_time() too early causes
-        # NoneType errors inside those threads.
-        log.info("Connected (%s) — waiting for websocket data to settle...", balance_type)
-        time.sleep(3)
-        log.info("IQ Option ready")
-        return True
+                # Wait for websocket subscriptions to settle before any API calls
+                log.info("Connected (%s) — waiting for websocket data to settle...", balance_type)
+                time.sleep(3)
+                log.info("IQ Option ready")
+                return True
+            except Exception as e:
+                log.error("IQ Option connect exception (attempt %d/3): %s", attempt + 1, e)
+                time.sleep(3)
+
+        log.error("All IQ Option connection attempts failed")
+        return False
 
     def ensure_connected(self) -> bool:
         """Reconnect if session dropped."""
