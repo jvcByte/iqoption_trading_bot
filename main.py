@@ -118,12 +118,14 @@ async def main() -> None:
 
     shutdown = asyncio.Event()
 
-    def _shutdown(sig, frame):
-        log.info("Shutdown signal received — stopping...")
-        shutdown.set()
+    def _shutdown():
+        if not shutdown.is_set():
+            log.info("Shutdown signal received — stopping...")
+            shutdown.set()
 
-    signal.signal(signal.SIGINT, _shutdown)
-    signal.signal(signal.SIGTERM, _shutdown)
+    loop = asyncio.get_event_loop()
+    loop.add_signal_handler(signal.SIGINT, _shutdown)
+    loop.add_signal_handler(signal.SIGTERM, _shutdown)
 
     # IQ Option client (sync, runs in executor)
     iq_client = IQOptionClient(cfg.iqoption, cfg.trading)
@@ -155,17 +157,22 @@ async def main() -> None:
 
     while not shutdown.is_set():
         try:
-            await run_scan(cfg, iq_client, tg_sender)
+            scan_task = asyncio.create_task(run_scan(cfg, iq_client, tg_sender))
+            # Wait for scan or shutdown — whichever comes first
+            done, _ = await asyncio.wait(
+                [scan_task, asyncio.create_task(shutdown.wait())],
+                return_when=asyncio.FIRST_COMPLETED
+            )
+            if shutdown.is_set():
+                scan_task.cancel()
+                break
         except Exception as e:
             log.exception("Unexpected error in scan loop: %s", e)
 
         try:
-            await asyncio.wait_for(
-                shutdown.wait(),
-                timeout=cfg.trading.scan_interval_seconds
-            )
+            await asyncio.wait_for(shutdown.wait(), timeout=cfg.trading.scan_interval_seconds)
         except asyncio.TimeoutError:
-            pass  # normal — just means interval elapsed, keep scanning
+            pass  # interval elapsed, keep scanning
 
     log.info("Shutting down...")
     iq_client.disconnect()
