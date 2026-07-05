@@ -1,0 +1,53 @@
+iqoption:
+  email: "your@email.com"
+  password: "your_password"
+  demo_mode: true                   # Always test on demo first!
+
+telegram:
+  api_id: YOUR_API_ID
+  api_hash: "YOUR_API_HASH"
+  phone: "+1234567890"
+  # channel_id: -1001234567890     # test channel
+  channel_id: -1009876543210       # mexy
+  session_file: "session/telegram.session"
+
+trading:
+  instrument: "blitz"               # "binary" or "blitz"
+  expiry_seconds: 120               # 30=blitz, 60=1min, 120=2min, 300=5min
+  assets:
+    - "EURUSD"
+    - "GBPUSD"
+    - "USDJPY"
+    - "AUDUSD"
+    - "EURGBP"
+  scan_interval_seconds: 30         # scan each asset every N seconds
+  candle_interval_seconds: 60       # 1-min candles for analysis
+  candle_count: 100                 # history depth
+
+analysis:
+  min_confidence: 0.75              # require 75%+ indicator agreement
+  indicators:
+    rsi_period: 14
+    rsi_oversold: 30
+    rsi_overbought: 70
+    ema_fast: 9
+    ema_slow: 21
+    macd_fast: 12
+    macd_slow: 26
+    macd_signal: 9
+    bb_period: 20
+    bb_std: 2.0
+    stoch_k: 14
+    stoch_d: 3
+
+martingale:
+  enabled: true
+  levels: 2                         # include 2 martingale re-entry times in signal
+
+signal:
+  cooldown_seconds: 300             # 5-min cooldown per asset between signals
+  source_name: "SIGNAL BOT 🤖"
+
+logging:
+  level: "INFO"
+  file: "logs/signal_generator.log"
