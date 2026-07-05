@@ -2,7 +2,7 @@
 iqoptionapi @ https://github.com/iqoptionapi/iqoptionapi/archive/refs/heads/master.zip
 websocket-client==0.56.0
 pandas==2.2.3
-pandas-ta==0.3.14b
+pandas-ta==0.4.71b0
 requests==2.32.3
 telethon==1.36.0
 pyyaml==6.0.2
