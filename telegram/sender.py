@@ -43,12 +43,16 @@ def format_signal(
     trading: TradingConfig,
     martingale: MartingaleConfig,
     signal_cfg: SignalConfig,
-    entry_time: Optional[datetime] = None,
+    sent_at: Optional[datetime] = None,
 ) -> str:
-    if entry_time is None:
-        entry_time = datetime.now()
+    if sent_at is None:
+        sent_at = datetime.now()
+
+    # Entry window is always in the future — subscribers need time to act
+    entry_time = sent_at + timedelta(seconds=signal_cfg.entry_lead_seconds)
 
     expiry_min = _expiry_minutes(trading.expiry_seconds)
+    sent_str = sent_at.strftime("%I:%M %p").lstrip("0")
     entry_str = entry_time.strftime("%I:%M %p").lstrip("0")
     confidence_pct = int(result.confidence * 100)
 
@@ -60,11 +64,13 @@ def format_signal(
         f"{_DIRECTION_EMOJI.get(result.direction, '')}  {_flags(result.asset)} {_format_asset(result.asset)}",
         f"🕒  Timeframe: {expiry_min}-min expiry",
         f"🤖  AI Confidence: {confidence_pct}%",
+        f"📤  Signal Sent: {sent_str}",
         f"🕰️  Entry Window: {entry_str}",
         f"Direction: {_DIRECTION_LABEL.get(result.direction, result.direction)}",
         f"📊  Instrument: {trading.instrument.upper()}",
     ]
 
+    # Martingale levels are offset from entry time by expiry duration each
     if martingale.enabled and martingale.levels > 0 and expiry_min >= 1:
         lines += ["", "📊  Martingale Levels:"]
         for lvl in range(1, martingale.levels + 1):
@@ -151,7 +157,7 @@ class TelegramSender:
         martingale: MartingaleConfig,
         signal_cfg: SignalConfig,
     ) -> bool:
-        text = format_signal(result, trading, martingale, signal_cfg, datetime.now())
+        text = format_signal(result, trading, martingale, signal_cfg, sent_at=datetime.now())
         log.debug("Formatted signal:\n%s", text)
         return await self.send(text)
 

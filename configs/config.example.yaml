@@ -48,6 +48,7 @@ martingale:
 signal:
   cooldown_seconds: 300             # 5-min cooldown per asset between signals
   source_name: "SIGNAL BOT 🤖"
+  entry_lead_seconds: 120           # entry window = now + this (min 60s, recommended 120s)
 
 logging:
   level: "INFO"

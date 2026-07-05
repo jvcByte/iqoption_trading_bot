@@ -67,6 +67,7 @@ class MartingaleConfig:
 class SignalConfig:
     cooldown_seconds: int = 300
     source_name: str = "SIGNAL BOT 🤖"
+    entry_lead_seconds: int = 120   # how far ahead to set the entry window
 
 
 @dataclass
@@ -173,6 +174,7 @@ def load_config(path: str = "configs/config.yaml") -> AppConfig:
         signal=SignalConfig(
             cooldown_seconds=sg.get("cooldown_seconds", 300),
             source_name=sg.get("source_name", "SIGNAL BOT 🤖"),
+            entry_lead_seconds=sg.get("entry_lead_seconds", 120),
         ),
         logging=LoggingConfig(
             level=lg.get("level", "DEBUG"),
