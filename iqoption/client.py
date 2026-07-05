@@ -143,11 +143,11 @@ class IQOptionClient:
         try:
             candles = self._api.get_candles(asset, iq_duration, count, end_time)
         except Exception as e:
-            log.error("Failed to fetch candles for %s: %s", asset, e)
+            log.debug("Failed to fetch candles for %s: %s", asset, e)
             return None
 
         if not candles:
-            log.warning("No candles returned for %s", asset)
+            log.debug("No candles returned for %s (may not be available)", asset)
             return None
 
         rows = []

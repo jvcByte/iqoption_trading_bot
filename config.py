@@ -175,7 +175,7 @@ def load_config(path: str = "configs/config.yaml") -> AppConfig:
             source_name=sg.get("source_name", "SIGNAL BOT 🤖"),
         ),
         logging=LoggingConfig(
-            level=lg.get("level", "INFO"),
+            level=lg.get("level", "DEBUG"),
             file=lg.get("file", "logs/signal_generator.log"),
         ),
     )
@@ -190,3 +190,13 @@ def setup_logging(cfg: LoggingConfig) -> None:
         logging.FileHandler(cfg.file),
     ]
     logging.basicConfig(level=level, format=fmt, handlers=handlers)
+
+    # Silence noisy third-party loggers — always, regardless of our level
+    for noisy in [
+        "iqoptionapi.ws.client",     # timeSync heartbeat spam
+        "iqoptionapi.api",           # raw HTTP request/response dumps
+        "urllib3.connectionpool",    # HTTP connection details
+        "telethon.network.mtprotosender",  # Telegram network internals
+        "telethon.extensions.messagepacker",
+    ]:
+        logging.getLogger(noisy).setLevel(logging.WARNING)

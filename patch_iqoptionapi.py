@@ -17,6 +17,9 @@ REPLACE = (
     '            return'
 )
 
+SEARCH2 = "                    print('Asset {} not found on consts'.format(ACTIVES))"
+REPLACE2 = "                    logging.debug('Asset {} not found on consts'.format(ACTIVES))"
+
 def find_stable_api() -> str:
     patterns = [
         ".venv/lib/python*/site-packages/iqoptionapi/stable_api.py",
@@ -43,6 +46,11 @@ def main():
         return
 
     patched = content.replace(SEARCH, REPLACE)
+    patched = patched.replace(SEARCH2, REPLACE2)
+
+    # Ensure logging is imported in the file
+    if "import logging" not in patched:
+        patched = "import logging\n" + patched
     with open(path, "w") as f:
         f.write(patched)
 
