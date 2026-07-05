@@ -4,11 +4,11 @@ iqoption:
   demo_mode: true                   # Always test on demo first!
 
 telegram:
-  api_id: YOUR_API_ID
+  api_id: YOUR_API_ID               # Get from https://my.telegram.org
   api_hash: "YOUR_API_HASH"
   phone: "+1234567890"
-  # channel_id: -1001234567890     # test channel
-  channel_id: -1009876543210       # mexy
+  # channel_id: -1001234567890      # test channel
+  channel_id: -1009876543210        # your signal channel
   session_file: "session/signal_generator.session"
 
 trading:
